@@ -6,35 +6,61 @@ const saltRounds = 10;
 
 const User = require("../models/User.model")
 
-/* GET home page */
-router.get("/signup", (req, res, next) => {
+/* Signup page *////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*Get */
+router.get("/signup", (req, res) => {
     res.render("auth/signup");
 });
-  
 
-
-
-
-/* POST Signup page */
-router.post("/signup", async (req, res, next) => {
-  
-    const { username, email, password } = req.body;
-  
+/*Post */
+router.post("/signup", async (req, res) => {
+    const { username, password } = req.body;
     const passwordHash = await bcrypt.hash(password, saltRounds);
-    
-    User.create({ username, email, passwordHash })
-    .then((newUser)=> res.redirect(`/auth/profile/${newUser.username}`))
+
+    User.create({ username, passwordHash})
+    .then((newUser)=> res.redirect(`/profile/${newUser.username}`))
     .catch(err => console.log(err))
-  
+ 
 });
 
-router.get("/profile/:username", (req, res, next) => {
-    const { username } = req.params;
-
-    User.findOne({ username })
+/*Get - Profile */
+router.get("/profile/:username", (req, res) => {
+    const {username} = req.params;
+    User.findOne({username})
     .then(foundUser => res.render("auth/profile", {user: foundUser}))
-    .catch(err => console.log(err))
+    
 });
 
+/* Login page */////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*Get */
+router.get('/login', (req, res) => 
+res.render('auth/login'));
+
+/*Post */
+router.post('/login', (req, res) => {
+    const { username, password } = req.body;
+   
+    if (username === '' || password === '') {
+      res.render('auth/login', {
+        errorMessage: 'Please enter both, username and password to login.'
+      });
+      return;
+    }
+   
+    User.findOne({ username })
+      .then(user => {
+        if (!user) {
+          res.render('auth/login', { errorMessage: 'Username is not registered. Try with other username.' });
+          return;
+        } else if (bcrypt.compareSync(password, user.passwordHash)) {
+          res.redirect(`/profile/${user.username}`);
+        } else {
+          res.render('auth/login', { errorMessage: 'Incorrect password.' });
+        }
+      })
+      .catch(err => next(err));
+  });
 
 module.exports = router;
