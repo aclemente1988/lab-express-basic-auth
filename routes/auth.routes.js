@@ -10,6 +10,7 @@ const User = require("../models/User.model")
 
 /*Get */
 router.get("/signup", (req, res) => {
+    console.log(req.session)
     res.render("auth/signup");
 });
 
@@ -19,24 +20,39 @@ router.post("/signup", async (req, res) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     User.create({ username, passwordHash})
-    .then((newUser)=> res.redirect(`/profile/${newUser.username}`))
+    .then((newUser)=> {
+        req.session.currrentUser = newUser;
+        res.redirect('/profile')
+    })
     .catch(err => console.log(err))
  
 });
 
 /*Get - Profile */
-router.get("/profile/:username", (req, res) => {
-    const {username} = req.params;
-    User.findOne({username})
-    .then(foundUser => res.render("auth/profile", {user: foundUser}))
+router.get("/profile", (req, res) => {
+
+    console.log(req.session.currrentUser); // For Authentication purpose
+
+    
+    if (req.session.currrentUser){
+        const {username} = req.session.currrentUser;
+        User.findOne({username})
+            .then(foundUser => res.render("auth/profile", {user: foundUser}))
+            .catch(err => console.log(err))
+    }
+    else {
+        res.redirect('/login')
+    }
     
 });
 
 /* Login page */////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*Get */
-router.get('/login', (req, res) => 
-res.render('auth/login'));
+router.get('/login', (req, res) =>{
+    console.log(req.session)
+    res.render('auth/login')
+});
 
 /*Post */
 router.post('/login', (req, res) => {
@@ -55,12 +71,21 @@ router.post('/login', (req, res) => {
           res.render('auth/login', { errorMessage: 'Username is not registered. Try with other username.' });
           return;
         } else if (bcrypt.compareSync(password, user.passwordHash)) {
-          res.redirect(`/profile/${user.username}`);
+            req.session.currrentUser = user;    // For Authentication purpose
+            res.redirect('/profile/');
         } else {
           res.render('auth/login', { errorMessage: 'Incorrect password.' });
         }
       })
       .catch(err => next(err));
+  });
+
+
+  router.post('/logout',(req, res) => {
+    req.session.destroy(err => {
+      if (err) console.log(err);
+      res.redirect('/');
+    });
   });
 
 module.exports = router;
